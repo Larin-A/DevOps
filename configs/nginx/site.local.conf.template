@@ -1,0 +1,81 @@
+# Редирект с HTTP на HTTPS
+server {
+    listen 80;
+    server_name site.local;
+    return 301 https://$server_name$request_uri;
+}
+
+# Основной сервер на HTTPS
+server {
+    listen 443 ssl http2;
+    server_name site.local;
+
+    # SSL-сертификаты
+    ssl_certificate /etc/nginx/ssl/site.local.crt;
+    ssl_certificate_key /etc/nginx/ssl/site.local.key;
+
+    root /var/www/html;
+    index index.php;
+
+    # Защита: запрещаем доступ к системным файлам в корне
+    location ~* /(wp-config\.php|\.htaccess|\.htpasswd|readme\.html|license\.txt|debug\.log) {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    # Защита: запрещаем выполнение любых скриптов и чтение конфигов в системных папках
+    location ~* ^/(wp-admin|wp-includes|wp-content/uploads)/.*\.(php|pl|py|jsp|asp|sh|cgi|conf|log|sql|json|yml|yaml|xml|ini|htaccess|htpasswd)$ {
+        deny all;
+    }
+
+    # Защита админки: доступ только с одного IP
+    location ~ ^/wp-admin/ {
+        allow REPLACE_WITH_YOUR_IP;
+        deny all;
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    # Страница входа — с внешнего IP ИЛИ из локальной сети
+    location = /wp-login.php {
+        allow REPLACE_WITH_YOUR_IP;
+        allow 192.168.0.0/16;
+        deny all;
+        fastcgi_pass wordpress:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    # Обработка всех PHP-файлов
+    location ~ \.php$ {
+        fastcgi_pass wordpress:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    # Основной локейшн: маршрутизация ЧПУ через index.php
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    # Дифференцированное кэширование статики
+    # Картинки, шрифты, иконки — на год
+    location ~* \.(png|jpg|jpeg|gif|ico|svg|woff2|ttf|eot|webp)$ {
+        expires 1y;
+        log_not_found off;
+    }
+
+    # CSS и JS — на 2 дня (компромисс между скоростью и удобством разработки)
+    location ~* \.(css|js)$ {
+        expires 2d;
+        log_not_found off;
+    }
+
+    # Критические файлы (конфиги, манифесты) — не кэшируем
+    location ~* \.(json|xml|manifest\.json)$ {
+        expires -1;
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
+    }
+}
