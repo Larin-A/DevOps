@@ -1,0 +1,27 @@
+# Docker / Данные контейнеров
+wordpress-data/
+grafana-data/
+prometheus-data/
+db-data/
+
+# Секреты и SSL
+ssl/*.key
+ssl/*.crt
+*.pem
+
+# Логи
+*.log
+*.tmp
+
+# Файлы для локального оверрайда и окружения
+docker-compose.override.yml
+.env
+.env.local
+
+# IDE и системные файлы
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
