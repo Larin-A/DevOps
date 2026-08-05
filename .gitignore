@@ -8,6 +8,8 @@ db-data/
 ssl/*.key
 ssl/*.crt
 *.pem
+.env
+.env.local
 
 # Логи
 *.log

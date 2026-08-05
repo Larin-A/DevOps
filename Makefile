@@ -3,15 +3,28 @@ NGINX_TEMPLATE = configs/nginx/site.local.conf.template
 NGINX_CONF = configs/nginx/site.local.conf
 SSL_KEY = ssl/site.local.key
 SSL_CRT = ssl/site.local.crt
+ENV_FILE = .env
+ENV_TEMPLATE = .env.template
 
 help:
 	@echo "Доступные команды:"
-	@echo "  make ssl   - Сгенерировать SSL-сертификаты (если нет)"
-	@echo "  make ip    - Создать конфиг Nginx с вашим IP из шаблона"
-	@echo "  make up    - Подготовить всё и запустить контейнеры"
-	@echo "  make down  - Остановить контейнеры"
-	@echo "  make logs  - Показать логи всех контейнеров"
-	@echo "  make clean - Остановить и удалить всё (включая данные)"
+	@echo "  make ssl       - Сгенерировать SSL-сертификаты (если нет)"
+	@echo "  make ip        - Создать конфиг Nginx с вашим IP из шаблона"
+        @echo "  make check-env - Проверка и создание .env из шаблона"
+	@echo "  make up        - Подготовить всё и запустить контейнеры"
+	@echo "  make down      - Остановить контейнеры"
+	@echo "  make logs      - Показать логи всех контейнеров"
+	@echo "  make clean     - Остановить и удалить всё (включая данные)"
+
+
+check-env:
+	@if [ ! -f "$(ENV_FILE)" ]; then \
+		echo "Файл .env не найден. Создаю из шаблона..."; \
+		cp $(ENV_TEMPLATE) $(ENV_FILE); \
+		echo "Создан $(ENV_FILE). Проверьте и при необходимости измените пароли."; \
+	else \
+		echo "Файл .env уже существует."; \
+	fi
 
 ssl:
 	@echo "Проверка SSL-сертификатов..."
@@ -39,12 +52,12 @@ ip:
 	sed "s/REPLACE_WITH_YOUR_IP/$$CURRENT_IP/g" $(NGINX_TEMPLATE) > $(NGINX_CONF); \
 	echo "Конфиг создан: $(NGINX_CONF)"
 
-up: ssl ip
+up: check-env ssl ip
 	@echo "Запускаем контейнеры..."
 	docker-compose up -d
 	@echo "Всё запущено."
 	@echo "WordPress: https://site.local (самоподписанный сертификат)"
-	@echo "Grafana: http://metrics.local (логин/пароль: admin/admin)"
+	@echo "Grafana: http://metrics.local (логин/пароль из .env)"
 	@echo "Prometheus: http://localhost:9090"
 	@echo "Не забудьте добавить в /etc/hosts: 127.0.0.1 site.local metrics.local"
 
