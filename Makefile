@@ -54,7 +54,7 @@ ip:
 
 up: check-env ssl ip
 	@echo "Запускаем контейнеры..."
-	docker-compose up -d
+	docker compose up -d
 	@echo "Всё запущено."
 	@echo "WordPress: https://site.local (самоподписанный сертификат)"
 	@echo "Grafana: http://metrics.local (логин/пароль из .env)"
@@ -63,18 +63,18 @@ up: check-env ssl ip
 
 down:
 	@echo "Останавливаем контейнеры..."
-	docker-compose down
+	docker compose down
 	@echo "Готово"
 
 logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 clean:
 	@echo "Внимание! Это удалит все контейнеры и тома с данными."
 	@read -p "Вы уверены? (y/N) " -n 1 -r; \
 	echo ""; \
 	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
-		docker-compose down -v; \
+		docker compose down -v; \
 		echo "Всё удалено"; \
 	else \
 		echo "Отмена"; \
