@@ -24,22 +24,43 @@ server {
         log_not_found off;
     }
 
-    # Защита: запрещаем выполнение любых скриптов и чтение конфигов в системных папках
-    location ~* ^/(wp-admin|wp-includes|wp-content/uploads)/.*\.(php|pl|py|jsp|asp|sh|cgi|conf|log|sql|json|yml|yaml|xml|ini|htaccess|htpasswd)$ {
+    # Защита папки загрузок (uploads) — здесь .php и т.п. быть не должно
+    location ~* ^/wp-content/uploads/.*\.(php|pl|py|jsp|asp|sh|cgi|conf|log|sql|json|yml|yaml|xml|ini|htaccess|htpasswd)$ {
         deny all;
+        access_log off;
+        log_not_found off;
     }
 
-    # Защита админки: доступ только с одного IP
+    # Защита файлов ядра (wp-includes) - прямые вызовы запрещены
+    location ~* ^/wp-includes/.*\.(php|pl|py|jsp|asp|sh|cgi|conf|log|sql|json|yml|yaml|xml|ini|htaccess|htpasswd)$ {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    # Защита админки: доступ с указанного IP или из сети Docker/WSL
     location ~ ^/wp-admin/ {
         allow REPLACE_WITH_YOUR_IP;
+        allow 172.16.0.0/12;
         deny all;
+
+        # Все PHP-запросы внутри админки отправляем на PHP-FPM
+        location ~ \.php$ {
+            fastcgi_pass wordpress:9000;
+            fastcgi_index index.php;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            include fastcgi_params;
+        }
+
+        # Статика
         try_files $uri $uri/ /index.php?$args;
     }
 
-    # Страница входа — с внешнего IP ИЛИ из локальной сети
+    # Страница входа — с указанного IP или из сети Docker/WSL ИЛИ из локальной сети 192.168.x.x
     location = /wp-login.php {
         allow REPLACE_WITH_YOUR_IP;
         allow 192.168.0.0/16;
+        allow 172.16.0.0/12;
         deny all;
         fastcgi_pass wordpress:9000;
         fastcgi_index index.php;

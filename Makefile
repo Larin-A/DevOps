@@ -32,7 +32,15 @@ check-env:
 	@if [ ! -f "$(ENV_FILE)" ]; then \
 		echo "Файл .env не найден. Создаю из шаблона..."; \
 		cp $(ENV_TEMPLATE) $(ENV_FILE); \
-		echo "Создан $(ENV_FILE). Проверьте и при необходимости измените логины и пароли."; \
+		CURRENT_IP=$$(hostname -I | awk '{print $$1}'); \
+		if [ -z "$$CURRENT_IP" ]; then \
+			echo "Не удалось определить IP. Используем 127.0.0.1"; \
+			CURRENT_IP="127.0.0.1"; \
+		fi; \
+		echo "Определён IP хоста: $$CURRENT_IP"; \
+		sed -i "s/{{ADMIN_IP}}/$$CURRENT_IP/g" $(ENV_FILE); \
+		echo "Создан $(ENV_FILE) с IP: $$CURRENT_IP"; \
+		echo "При необходимости отредактируйте $(ENV_FILE) вручную."; \
 	else \
 		echo "Файл .env уже существует."; \
 	fi
@@ -52,18 +60,18 @@ ssl:
 	fi
 
 ip:
-	@echo "Определяем ваш внешний IP-адрес..."
-	@CURRENT_IP=$$(curl -s ifconfig.me); \
-	if [ -z "$$CURRENT_IP" ]; then \
-		echo "Не удалось определить IP. Проверьте интернет."; \
-		exit 1; \
+	@echo "Подставляем IP из .env в конфиг Nginx..."
+	@source $(ENV_FILE); \
+	if [ -z "$$ADMIN_IP" ]; then \
+		echo "ADMIN_IP не задан в .env. Используем 127.0.0.1"; \
+		ADMIN_IP="127.0.0.1"; \
 	fi; \
-	echo "Ваш IP: $$CURRENT_IP"; \
-        if [ -f "$(NGINX_CONF)" ] && grep -q "$$CURRENT_IP" $(NGINX_CONF); then \
+	echo "Используем IP: $$ADMIN_IP"; \
+	if [ -f "$(NGINX_CONF)" ] && grep -q "$$ADMIN_IP" $(NGINX_CONF); then \
 		echo "Конфиг Nginx уже содержит актуальный IP, пропускаем"; \
 	else \
 		echo "Создаём конфиг Nginx из шаблона..."; \
-		sed "s/REPLACE_WITH_YOUR_IP/$$CURRENT_IP/g" $(NGINX_TEMPLATE) > $(NGINX_CONF); \
+		sed "s/REPLACE_WITH_YOUR_IP/$$ADMIN_IP/g" $(NGINX_TEMPLATE) > $(NGINX_CONF); \
 		echo "Конфиг создан: $(NGINX_CONF)"; \
 	fi
 
