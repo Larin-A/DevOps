@@ -8,14 +8,25 @@ ENV_TEMPLATE = .env.template
 
 help:
 	@echo "Доступные команды:"
-	@echo "  make ssl       - Сгенерировать SSL-сертификаты (если нет)"
-	@echo "  make ip        - Создать конфиг Nginx с вашим IP из шаблона"
-	@echo "  make check-env - Проверка и создание .env из шаблона"
-	@echo "  make up        - Подготовить всё и запустить контейнеры"
-	@echo "  make down      - Остановить контейнеры"
-	@echo "  make logs      - Показать логи всех контейнеров"
-	@echo "  make clean     - Остановить и удалить всё (включая данные)"
+	@echo "  make up             - Подготовить всё и запустить контейнеры"
+	@echo "  make ssl            - Сгенерировать SSL-сертификаты (если нет)"
+	@echo "  make ip             - Создать конфиг Nginx с вашим IP из шаблона"
+	@echo "  make check-env      - Проверка и создание .env из шаблона"
+	@echo "  make set-enviroment - Выбрать окружение (make set-enviroment ENV=prod)"
+	@echo "  make check-override - Проверка и создание .env из шаблона"
+	@echo "  make down           - Остановить контейнеры"
+	@echo "  make logs           - Показать логи всех контейнеров"
+	@echo "  make clean          - Остановить и удалить всё (включая данные)"
+	@echo "  make restart        - Перезапуск"
 
+set-enviroment:
+	@if [ -z "$(ENV)" ]; then \
+		echo "Использование: make set-enviroment ENV=dev|prod|debug"; \
+		exit 1; \
+	fi
+	@sed -i "s/^ENVIRONMENT=.*/ENVIRONMENT=$(ENV)/" $(ENV_FILE)
+	@echo "Окружение изменено на: $(ENV)"
+	@echo "Перезапустите стек: make down && make up"
 
 check-env:
 	@if [ ! -f "$(ENV_FILE)" ]; then \
@@ -48,11 +59,15 @@ ip:
 		exit 1; \
 	fi; \
 	echo "Ваш IP: $$CURRENT_IP"; \
-	echo "Создаём конфиг Nginx из шаблона..."; \
-	sed "s/REPLACE_WITH_YOUR_IP/$$CURRENT_IP/g" $(NGINX_TEMPLATE) > $(NGINX_CONF); \
-	echo "Конфиг создан: $(NGINX_CONF)"
+        if [ -f "$(NGINX_CONF)" ] && grep -q "$$CURRENT_IP" $(NGINX_CONF); then \
+		echo "Конфиг Nginx уже содержит актуальный IP, пропускаем"; \
+	else \
+		echo "Создаём конфиг Nginx из шаблона..."; \
+		sed "s/REPLACE_WITH_YOUR_IP/$$CURRENT_IP/g" $(NGINX_TEMPLATE) > $(NGINX_CONF); \
+		echo "Конфиг создан: $(NGINX_CONF)"; \
+	fi
 
-up: check-env ssl ip
+up: check-env check-override ssl ip
 	@echo "Запускаем контейнеры..."
 	docker compose up -d
 	@echo "Всё запущено."
@@ -60,6 +75,28 @@ up: check-env ssl ip
 	@echo "Grafana: http://metrics.local (логин/пароль из .env)"
 	@echo "Prometheus: http://localhost:9090"
 	@echo "Не забудьте добавить в /etc/hosts: 127.0.0.1 site.local metrics.local"
+
+check-override:
+	@echo "Определяем окружение..."
+	@ENVIRONMENT=$$(grep '^ENVIRONMENT=' $(ENV_FILE) | cut -d'=' -f2 | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$$//' || echo ""); \
+	if [ -z "$$ENVIRONMENT" ]; then \
+		echo "ENVIRONMENT не задан в .env. Устанавливаю prod по умолчанию..."; \
+		ENVIRONMENT=prod; \
+		sed -i "s/^ENVIRONMENT=.*/ENVIRONMENT=prod/" $(ENV_FILE); \
+	fi; \
+	echo "Текущее окружение: $$ENVIRONMENT"; \
+	OVERRIDE_FILE="docker-compose.override.yml"; \
+	OVERRIDE_TEMPLATE="docker-compose.override.$$ENVIRONMENT.template.yml"; \
+	if [ ! -f "$$OVERRIDE_FILE" ] && [ -f "$$OVERRIDE_TEMPLATE" ]; then \
+		echo "Оверлей для окружения $$ENVIRONMENT не найден. Создаю из шаблона..."; \
+		cp "$$OVERRIDE_TEMPLATE" "$$OVERRIDE_FILE"; \
+		echo "Создан $$OVERRIDE_FILE"; \
+	elif [ ! -f "$$OVERRIDE_TEMPLATE" ]; then \
+		echo "Шаблон $$OVERRIDE_TEMPLATE не найден. Пропускаю."; \
+	else \
+		echo "Оверлей $$OVERRIDE_FILE уже существует."; \
+	fi; \
+	echo "OVERRIDE_FILE=$$OVERRIDE_FILE" >> /tmp/make_override.tmp
 
 down:
 	@echo "Останавливаем контейнеры..."
