@@ -159,7 +159,7 @@ configure-fail2ban:
 	@echo "Копирование конфига jail.local..."
 	@sudo cp configs/fail2ban/jail.local /etc/fail2ban/jail.local
 	@echo "Перезапуск Fail2ban..."
-	@sudo systemctl restart fail2ban
+	@sudo service fail2ban restart
 	@sleep 1
 	@echo "Статус защиты SSH:"
 	@sudo fail2ban-client status sshd
