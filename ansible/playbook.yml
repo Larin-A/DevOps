@@ -54,9 +54,10 @@
 
     - name: Add current user to docker group
       user:
-        name: "{{ ansible_user }}"
+        name: "{{ ansible_env.USER }}"
         groups: docker
         append: yes
+      when: ansible_env.USER is defined
 
     - name: Check if project exists
       stat:
