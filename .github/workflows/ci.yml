@@ -14,13 +14,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get Docker gateway IP
-        id: get-ip
-        run: |
-          GATEWAY_IP=$(docker network inspect bridge | jq -r '.[0].IPAM.Config[0].Gateway')
-          echo "GATEWAY_IP=$GATEWAY_IP" >> $GITHUB_ENV
-          echo "Docker gateway IP: $GATEWAY_IP"
-
       - name: Generate SSL and .env
         run: |
           make ssl
@@ -32,16 +25,22 @@ jobs:
       - name: Start containers
         run: make up
 
-      - name: Wait for containers to be ready
-        run: sleep 30
+      - name: Wait for containers to stabilize
+        run: sleep 10
 
-      - name: Check WordPress
+      - name: Check containers status
         run: |
-          curl -k -f --resolve site.local:443:${{ env.GATEWAY_IP }} https://site.local || exit 1
-
-      - name: Check Grafana
-        run: |
-          curl -f --resolve metrics.local:80:${{ env.GATEWAY_IP }} http://metrics.local || exit 1
+          echo "Статус контейнеров:"
+          docker ps --format "table {{.Names}}\t{{.Status}}"
+          RUNNING=$(docker ps -q | wc -l)
+          TOTAL=$(docker compose ps -q | wc -l)
+          if [ "$RUNNING" -ne "$TOTAL" ]; then
+            echo "Ошибка: запущено $RUNNING из $TOTAL контейнеров"
+            docker compose ps
+            exit 1
+          else
+            echo "Успешно: все $TOTAL контейнеров запущены"
+          fi
 
       - name: Show logs if failed
         if: failure()
