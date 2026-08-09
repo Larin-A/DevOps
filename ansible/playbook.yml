@@ -47,14 +47,24 @@
         state: present
 
     - name: Start Docker daemon
-      command: dockerd &
-      async: 5
+      shell: |
+        nohup dockerd > /var/log/dockerd.log 2>&1 &
+      async: 10
       poll: 0
       ignore_errors: yes
 
+    - name: Wait for Docker socket
+      wait_for:
+        path: /var/run/docker.sock
+        timeout: 30
+        state: present
+
     - name: Wait for Docker to be ready
-      pause:
-        seconds: 5
+      shell: docker info
+      register: docker_info
+      until: docker_info.rc == 0
+      retries: 10
+      delay: 3
 
     - name: Check if Docker is accessible
       command: docker info
