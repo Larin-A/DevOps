@@ -1,0 +1,4 @@
+---
+project_dir: "{{ ansible_user_dir }}/larin-test-task"
+repo_url: "https://github.com/Larin-A/DevOps.git"
+branch: "main"

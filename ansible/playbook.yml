@@ -1,0 +1,53 @@
+---
+- name: Deploy test-task
+  hosts: localhost
+  connection: local
+  become: yes
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - docker.io
+          - docker-compose-plugin
+          - openssl
+          - curl
+          - git
+          - make
+          - fail2ban
+        state: present
+
+    - name: Clone repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ project_dir }}"
+        version: "{{ branch }}"
+        force: yes
+
+    - name: Configure host (hosts + fail2ban)
+      command:
+        cmd: make configure
+        chdir: "{{ project_dir }}"
+
+    - name: Start containers
+      command:
+        cmd: make up
+        chdir: "{{ project_dir }}"
+
+    - name: Show deployment status
+      debug:
+        msg:
+          - "Развертывание завершено!"
+          - "WordPress: https://site.local"
+          - "Grafana: http://metrics.local (логин/пароль из .env)"
+          - "Prometheus: http://localhost:9090"
+          - ""
+          - "Для смены окружения выполните в папке проекта:"
+          - "  make set-enviroment ENV=prod && make up"
