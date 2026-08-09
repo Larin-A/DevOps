@@ -12,17 +12,56 @@
         update_cache: yes
         cache_valid_time: 3600
 
-    - name: Install required packages
+    - name: Install dependencies
       apt:
         name:
-          - docker.io
-          - docker-compose-plugin
-          - openssl
+          - ca-certificates
           - curl
-          - git
+          - gnupg
+          - lsb-release
           - make
+          - git
+          - openssl
           - fail2ban
         state: present
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
+        state: present
+
+    - name: Install Docker Engine and Compose plugin
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        update_cache: yes
+        state: present
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add current user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Check if project exists
+      stat:
+        path: "{{ project_dir }}"
+      register: project_exists
 
     - name: Clone repository
       git:
@@ -30,6 +69,7 @@
         dest: "{{ project_dir }}"
         version: "{{ branch }}"
         force: yes
+      when: not project_exists.stat.exists
 
     - name: Configure host (hosts + fail2ban)
       command:
