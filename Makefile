@@ -9,6 +9,8 @@ ENV_TEMPLATE = .env.template
 #Переменные по умолчанию
 TAIL ?= 100
 
+.PHONY: ssl ip up down logs clean restart configure configure-hosts configure-fail2ban help check-env check-override set-enviroment
+
 help:
 	@echo "Доступные команды:"
 	@echo ""
