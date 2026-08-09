@@ -14,8 +14,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure host (add hosts entries)
-        run: make configure-hosts
+      - name: Get Docker gateway IP
+        id: get-ip
+        run: |
+          GATEWAY_IP=$(docker network inspect bridge | jq -r '.[0].IPAM.Config[0].Gateway')
+          echo "GATEWAY_IP=$GATEWAY_IP" >> $GITHUB_ENV
+          echo "Docker gateway IP: $GATEWAY_IP"
 
       - name: Generate SSL and .env
         run: |
@@ -32,10 +36,12 @@ jobs:
         run: sleep 30
 
       - name: Check WordPress
-        run: curl -k -f https://site.local || exit 1
+        run: |
+          curl -k -f --resolve site.local:443:${{ env.GATEWAY_IP }} https://site.local || exit 1
 
       - name: Check Grafana
-        run: curl -f http://metrics.local || exit 1
+        run: |
+          curl -f --resolve metrics.local:80:${{ env.GATEWAY_IP }} http://metrics.local || exit 1
 
       - name: Show logs if failed
         if: failure()
