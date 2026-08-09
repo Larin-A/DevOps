@@ -46,6 +46,16 @@
         update_cache: yes
         state: present
 
+    - name: Start Docker daemon
+      command: dockerd &
+      async: 5
+      poll: 0
+      ignore_errors: yes
+
+    - name: Wait for Docker to be ready
+      pause:
+        seconds: 5
+
     - name: Check if Docker is accessible
       command: docker info
       register: docker_info
