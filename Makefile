@@ -114,7 +114,6 @@ check-override:
 	else \
 		echo "Оверлей $$OVERRIDE_FILE уже существует."; \
 	fi; \
-	echo "OVERRIDE_FILE=$$OVERRIDE_FILE" >> /tmp/make_override.tmp
 
 down:
 	@echo "Останавливаем контейнеры..."
