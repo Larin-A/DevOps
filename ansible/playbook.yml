@@ -46,11 +46,15 @@
         update_cache: yes
         state: present
 
-    - name: Ensure Docker service is running
-      service:
-        name: docker
-        state: started
-        enabled: yes
+    - name: Check if Docker is accessible
+      command: docker info
+      register: docker_info
+      ignore_errors: yes
+
+    - name: Fail if Docker is not available
+      fail:
+        msg: "Docker недоступен. Убедитесь, что Docker установлен и сокет доступен."
+      when: docker_info.rc != 0
 
     - name: Add current user to docker group
       user:
