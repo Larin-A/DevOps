@@ -104,6 +104,12 @@
         force: yes
       when: not project_exists.stat.exists
 
+    - name: Update repository if exists
+      command:
+        cmd: git pull origin {{ branch }}
+        chdir: "{{ project_dir }}"
+      when: project_exists.stat.exists
+
     - name: Configure host (hosts + fail2ban)
       command:
         cmd: make configure
