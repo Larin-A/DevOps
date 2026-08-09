@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure host (add hosts entries)
+        run: make configure-hosts
+
+      - name: Generate SSL and .env
+        run: |
+          make ssl
+          make check-env
+
+      - name: Check docker-compose config
+        run: docker compose config
+
+      - name: Start containers
+        run: make up
+
+      - name: Wait for containers to be ready
+        run: sleep 30
+
+      - name: Check WordPress
+        run: curl -k -f https://site.local || exit 1
+
+      - name: Check Grafana
+        run: curl -f http://metrics.local || exit 1
+
+      - name: Show logs if failed
+        if: failure()
+        run: docker compose logs --tail=50
