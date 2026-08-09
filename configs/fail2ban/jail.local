@@ -1,0 +1,21 @@
+[DEFAULT]
+# Белый список
+ignoreip = 127.0.0.1/8 ::1 192.168.0.0/16 172.16.0.0/12
+
+# Время бана (в секундах)- 10 минут для теста
+bantime = 600
+
+# Время, за которое считаем попытки (в секундах) - 10 минут
+findtime = 600
+
+# Количество неудачных попыток до бана
+maxretry = 5
+
+# Действие при бане - заблокировать через iptables
+action = iptables-multiport[name=sshd, port="ssh", protocol=tcp]
+
+[sshd]
+enabled = true
+logpath = /var/log/auth.log
+filter = sshd
+backend = %(sshd_backend)s

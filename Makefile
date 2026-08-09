@@ -6,18 +6,28 @@ SSL_CRT = ssl/site.local.crt
 ENV_FILE = .env
 ENV_TEMPLATE = .env.template
 
+#Переменные по умолчанию
+TAIL ?= 100
+
 help:
 	@echo "Доступные команды:"
-	@echo "  make up             - Подготовить всё и запустить контейнеры"
-	@echo "  make ssl            - Сгенерировать SSL-сертификаты (если нет)"
-	@echo "  make ip             - Создать конфиг Nginx с вашим IP из шаблона"
-	@echo "  make check-env      - Проверка и создание .env из шаблона"
-	@echo "  make set-enviroment - Выбрать окружение (make set-enviroment ENV=prod)"
-	@echo "  make check-override - Проверка и создание .env из шаблона"
-	@echo "  make down           - Остановить контейнеры"
-	@echo "  make logs           - Показать логи всех контейнеров"
-	@echo "  make clean          - Остановить и удалить всё (включая данные)"
-	@echo "  make restart        - Перезапуск"
+	@echo ""
+	@echo "  Контейнеры (Docker):"
+	@echo "  make up                   - Запустить контейнеры (автогенерация SSL, IP, .env)"
+	@echo "  make down                 - Остановить контейнеры"
+	@echo "  make restart              - Перезапустить контейнеры"
+	@echo "  make logs                 - Показать последние 100 строк логов (можно указать TAIL=50)"
+	@echo "  make clean                - Остановить и удалить всё (контейнеры, тома, данные)"
+	@echo ""
+	@echo "  Вспомогательные (конфиги):"
+	@echo "  make ssl                  - Сгенерировать SSL-сертификаты (если отсутствуют)"
+	@echo "  make ip                   - Создать конфиг Nginx с вашим IP из .env"
+	@echo "  make check-env            - Создать .env из шаблона (если отсутствует)"
+	@echo ""
+	@echo "  Настройка хоста (WSL/сервер):"
+	@echo "  make configure-hosts      - Добавить site.local и metrics.local в /etc/hosts"
+	@echo "  make configure-fail2ban   - Установить конфиг Fail2ban для защиты SSH"
+	@echo "  make configure            - Выполнить все настройки хоста"
 
 set-enviroment:
 	@if [ -z "$(ENV)" ]; then \
@@ -112,7 +122,8 @@ down:
 	@echo "Готово"
 
 logs:
-	docker compose logs -f
+	@echo "Последние $(TAIL) строк логов:"
+	docker compose logs -f --tail=$(TAIL)
 
 clean:
 	@echo "Внимание! Это удалит все контейнеры и тома с данными."
@@ -127,3 +138,32 @@ clean:
 
 restart: down up
 	@echo "Перезапуск завершён"
+
+
+# ============================================================
+# Настройка хостовой системы (WSL/сервер)
+# Эти команды требуют прав sudo и изменяют файлы за пределами проекта.
+# ============================================================
+
+configure-hosts:
+	@echo "Добавление записей в /etc/hosts..."
+	@if ! grep -q "site.local" /etc/hosts; then \
+		echo "127.0.0.1 site.local metrics.local" | sudo tee -a /etc/hosts; \
+		echo "Записи добавлены."; \
+	else \
+		echo "Записи уже существуют, пропускаем."; \
+	fi
+
+configure-fail2ban:
+	@echo "Настройка Fail2ban..."
+	@echo "Копирование конфига jail.local..."
+	@sudo cp configs/fail2ban/jail.local /etc/fail2ban/jail.local
+	@echo "Перезапуск Fail2ban..."
+	@sudo systemctl restart fail2ban
+	@sleep 1
+	@echo "Статус защиты SSH:"
+	@sudo fail2ban-client status sshd
+	@echo "Настройка Fail2ban завершена."
+
+configure: configure-hosts configure-fail2ban
+	@echo "Настройка хоста завершена."
