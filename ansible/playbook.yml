@@ -23,6 +23,7 @@
           - git
           - openssl
           - fail2ban
+          - sudo
         state: present
 
     - name: Add Docker GPG key
